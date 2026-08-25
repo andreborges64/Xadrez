@@ -204,7 +204,6 @@
     </div>
   </div>
   <footer>© 2026 André Luiz Silva Dias Borges. Todos os direitos reservados.</footer>
-
   <div class="overlay hidden" id="promoOverlay">
     <div class="modal">
       <h2>Promoção do Peão</h2>
@@ -212,7 +211,6 @@
       <div class="modal-btns promo-btns" id="promoBtns"></div>
     </div>
   </div>
-
   <div class="overlay hidden" id="endOverlay">
     <div class="modal">
       <h2 id="endTitle">Fim de Jogo</h2>
@@ -222,35 +220,32 @@
       </div>
     </div>
   </div>
-
 <script>
 (function(){
-  // ============== CONFIG ==============
+  // ============== CONFIGURACAO ==============
   const PIECES = {
     wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
     bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟'
   };
   const DEPTHS = { easy:1, medium:2, hard:3, expert:4 };
   const VALUES = { P:100, N:320, B:330, R:500, Q:900, K:20000 };
-
-  // ============== STATE ==============
-  let board = [];          // 8x8 array of null or {type,color}
+  // ============== ESTADO ==============
+  let board = [];          // matriz 8x8 de valores nulos ou {type,color}
   let turn = 'w';
   let selected = null;     // {r,c}
-  let legal = [];          // array of {r,c, flags}
+  let legal = [];          // lista de {r,c, flags}
   let history = [];
   let mode = null;         // 'easy'|'medium'|'hard'|'expert'|'pvp'
-  let humanColor = 'w';    // color the human plays (or 'w' for pvp start)
+  let humanColor = 'w';    // cor usada pelo jogador (ou 'w' no inicio do pvp)
   let gameOver = false;
   let lastMove = null;
   let castling = { wK:true, wQ:true, bK:true, bQ:true };
-  let enPassant = null;    // {r,c} or null
+  let enPassant = null;    // {r,c} ou nulo
   let halfmove = 0;
   let fullmove = 1;
   let capturedW = [];
   let capturedB = [];
   let aiThinking = false;
-
   // ============== DOM ==============
   const boardEl = document.getElementById('board');
   const statusEl = document.getElementById('status');
@@ -263,8 +258,7 @@
   const endOverlay = document.getElementById('endOverlay');
   const endTitle = document.getElementById('endTitle');
   const endMsg = document.getElementById('endMsg');
-
-  // ============== INIT BOARD ==============
+  // ============== INICIALIZACAO DO TABULEIRO ==============
   function createEmpty() {
     return Array.from({length:8}, () => Array(8).fill(null));
   }
@@ -290,8 +284,7 @@
     capturedW = [];
     capturedB = [];
   }
-
-  // ============== RENDER ==============
+  // ============== RENDERIZACAO ==============
   function render() {
     boardEl.innerHTML = '';
     const flipped = humanColor === 'b';
@@ -303,7 +296,6 @@
         sq.className = 'sq ' + ((r+c)%2===0 ? 'light' : 'dark');
         sq.dataset.r = displayR;
         sq.dataset.c = displayC;
-
         if (selected && selected.r===displayR && selected.c===displayC) sq.classList.add('selected');
         if (lastMove && ((lastMove.fr===displayR && lastMove.fc===displayC) || (lastMove.tr===displayR && lastMove.tc===displayC)))
           sq.classList.add('last');
@@ -312,7 +304,7 @@
           sq.classList.add('possible');
           if (board[displayR][displayC]) sq.classList.add('has-piece');
         }
-        // check highlight
+        // destaca o xeque
         const piece = board[displayR][displayC];
         if (piece && piece.type==='K' && isInCheck(piece.color)) {
           sq.classList.add('check');
@@ -327,36 +319,33 @@
         boardEl.appendChild(sq);
       }
     }
-    // captured
+    // pecas capturadas
     capWhiteEl.innerHTML = capturedW.map(t => `<span>${PIECES['b'+t]}</span>`).join('');
     capBlackEl.innerHTML = capturedB.map(t => `<span>${PIECES['w'+t]}</span>`).join('');
   }
-
-  // ============== MOVES GENERATION ==============
+  // ============== GERACAO DE MOVIMENTOS ==============
   function inBounds(r,c){ return r>=0 && r<8 && c>=0 && c<8; }
   function isEmpty(r,c){ return !board[r][c]; }
   function isEnemy(r,c,color){ return board[r][c] && board[r][c].color !== color; }
   function isOwn(r,c,color){ return board[r][c] && board[r][c].color === color; }
-
   function genPseudo(r,c) {
     const p = board[r][c];
     if (!p) return [];
     const moves = [];
     const color = p.color;
     const dir = color==='w' ? -1 : 1;
-
     if (p.type === 'P') {
-      // forward
+      // movimento para frente
       if (inBounds(r+dir,c) && isEmpty(r+dir,c)) {
         moves.push({r:r+dir,c, flags:{}});
         const start = color==='w'?6:1;
         if (r===start && isEmpty(r+2*dir,c)) moves.push({r:r+2*dir,c, flags:{dbl:true}});
       }
-      // captures
+      // capturas
       for (const dc of [-1,1]) {
         const nr=r+dir, nc=c+dc;
         if (inBounds(nr,nc) && isEnemy(nr,nc,color)) moves.push({r:nr,c:nc, flags:{}});
-        // en passant
+        // captura en passant
         if (enPassant && nr===enPassant.r && nc===enPassant.c) moves.push({r:nr,c:nc, flags:{ep:true}});
       }
     } else if (p.type === 'N') {
@@ -384,7 +373,7 @@
         const nr=r+dr, nc=c+dc;
         if (inBounds(nr,nc) && !isOwn(nr,nc,color)) moves.push({r:nr,c:nc, flags:{}});
       }
-      // castling
+      // roque
       if (color==='w' && r===7 && c===4) {
         if (castling.wK && isEmpty(7,5) && isEmpty(7,6) && !isAttacked(7,4,'w') && !isAttacked(7,5,'w') && !isAttacked(7,6,'w'))
           moves.push({r:7,c:6, flags:{castle:'K'}});
@@ -400,24 +389,23 @@
     }
     return moves;
   }
-
   function isAttacked(r,c, byColor) {
-    // check if square is attacked by the opposite of byColor? Wait: by the enemy of the color that owns the king.
-    // isAttacked(r,c, color) means attacked by the opponent of color.
+    // verifica se a casa e atacada pelo adversario da cor informada
+    // isAttacked(r,c, cor) significa atacada pelo oponente da cor
     const enemy = byColor==='w'?'b':'w';
-    // pawns
+    // peoes
     const pdir = enemy==='w'?-1:1;
     for (const dc of [-1,1]) {
-      const nr=r-pdir, nc=c+dc; // from where a pawn of enemy would attack
+      const nr=r-pdir, nc=c+dc; // origem de um ataque de peao inimigo
       if (inBounds(nr,nc) && board[nr][nc] && board[nr][nc].color===enemy && board[nr][nc].type==='P') return true;
     }
-    // knights
+    // cavalos
     const jumps = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
     for (const [dr,dc] of jumps) {
       const nr=r+dr, nc=c+dc;
       if (inBounds(nr,nc) && board[nr][nc] && board[nr][nc].color===enemy && board[nr][nc].type==='N') return true;
     }
-    // bishop/queen diag
+    // diagonais de bispos e damas
     for (const [dr,dc] of [[-1,-1],[-1,1],[1,-1],[1,1]]) {
       let nr=r+dr, nc=c+dc;
       while (inBounds(nr,nc)) {
@@ -428,7 +416,7 @@
         nr+=dr; nc+=dc;
       }
     }
-    // rook/queen ortho
+    // linhas e colunas de torres e damas
     for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       let nr=r+dr, nc=c+dc;
       while (inBounds(nr,nc)) {
@@ -439,7 +427,7 @@
         nr+=dr; nc+=dc;
       }
     }
-    // king
+    // rei
     for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) {
       if (dr===0&&dc===0) continue;
       const nr=r+dr, nc=c+dc;
@@ -447,25 +435,22 @@
     }
     return false;
   }
-
   function findKing(color) {
     for (let r=0;r<8;r++) for (let c=0;c<8;c++)
       if (board[r][c] && board[r][c].type==='K' && board[r][c].color===color) return {r,c};
     return null;
   }
-
   function isInCheck(color) {
     const k = findKing(color);
     if (!k) return true;
     return isAttacked(k.r, k.c, color);
   }
-
   function getLegalMoves(r,c) {
     const pseudo = genPseudo(r,c);
     const legalMoves = [];
     const p = board[r][c];
     for (const m of pseudo) {
-      // make temp move
+      // faz um movimento temporario
       const snapshot = snapshotState();
       doMove(r,c,m.r,m.c,m.flags, true);
       if (!isInCheck(p.color)) legalMoves.push(m);
@@ -473,7 +458,6 @@
     }
     return legalMoves;
   }
-
   function getAllLegal(color) {
     const all = [];
     for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
@@ -484,8 +468,7 @@
     }
     return all;
   }
-
-  // ============== MAKE / UNDO ==============
+  // ============== MOVIMENTO / DESFAZER ==============
   function snapshotState() {
     return {
       board: board.map(row => row.map(p => p ? {...p} : null)),
@@ -505,19 +488,17 @@
     capturedW = s.capturedW;
     capturedB = s.capturedB;
   }
-
   function doMove(fr,fc,tr,tc,flags, silent) {
     const p = board[fr][fc];
     const target = board[tr][tc];
-    // capture
+    // captura
     if (target) {
       if (p.color==='w') capturedW.push(target.type);
       else capturedB.push(target.type);
       halfmove = 0;
     } else if (p.type==='P') halfmove = 0;
     else halfmove++;
-
-    // en passant capture
+    // captura en passant
     if (flags && flags.ep) {
       const capR = p.color==='w' ? tr+1 : tr-1;
       const cap = board[capR][tc];
@@ -527,13 +508,11 @@
       }
       board[capR][tc] = null;
     }
-
-    // move piece
+    // move a peca
     board[tr][tc] = p;
     board[fr][fc] = null;
-
-    // promotion (handled later if needed)
-    // castling rook move
+    // promocao (tratada depois, quando necessario)
+    // move a torre durante o roque
     if (flags && flags.castle) {
       if (flags.castle==='K') {
         board[tr][5] = board[tr][7];
@@ -543,8 +522,7 @@
         board[tr][0] = null;
       }
     }
-
-    // update castling rights
+    // atualiza os direitos de roque
     if (p.type==='K') {
       if (p.color==='w') { castling.wK=false; castling.wQ=false; }
       else { castling.bK=false; castling.bQ=false; }
@@ -555,28 +533,24 @@
       if (fr===0 && fc===0) castling.bQ=false;
       if (fr===0 && fc===7) castling.bK=false;
     }
-    // if captured rook
+    // se uma torre foi capturada
     if (target && target.type==='R') {
       if (tr===7 && tc===0) castling.wQ=false;
       if (tr===7 && tc===7) castling.wK=false;
       if (tr===0 && tc===0) castling.bQ=false;
       if (tr===0 && tc===7) castling.bK=false;
     }
-
-    // en passant square
+    // casa disponivel para en passant
     if (flags && flags.dbl) enPassant = {r: (fr+tr)/2, c:fc};
     else enPassant = null;
-
     lastMove = {fr,fc,tr,tc};
     if (turn==='b') fullmove++;
     turn = turn==='w'?'b':'w';
-
     if (!silent) {
       history.push(snapshotState());
     }
   }
-
-  // ============== PROMOTION ==============
+  // ============== PROMOCAO ==============
   let pendingPromo = null;
   function needPromo(fr,fc,tr,tc) {
     const p = board[tr][tc];
@@ -596,25 +570,22 @@
     }
     promoOverlay.classList.remove('hidden');
   }
-
-  // ============== GAME FLOW ==============
+  // ============== FLUXO DO JOGO ==============
   function onSquareClick(e) {
     if (gameOver || aiThinking) return;
     if (mode !== 'pvp' && turn !== humanColor) return;
-
     const r = +e.currentTarget.dataset.r;
     const c = +e.currentTarget.dataset.c;
     const p = board[r][c];
-
     if (selected) {
       const move = legal.find(m => m.r===r && m.c===c);
       if (move) {
-        // make the move
+        // faz o movimento
         const fr=selected.r, fc=selected.c;
         doMove(fr,fc,r,c,move.flags);
         selected = null;
         legal = [];
-        // promotion?
+        // promocao?
         if (needPromo(fr,fc,r,c)) {
           const color = board[r][c].color;
           showPromo(color, (type) => {
@@ -627,7 +598,7 @@
         return;
       }
     }
-    // select new
+    // seleciona uma nova peca
     if (p && p.color === turn) {
       selected = {r,c};
       legal = getLegalMoves(r,c);
@@ -637,7 +608,6 @@
     }
     render();
   }
-
   function afterMove() {
     render();
     checkEnd();
@@ -647,7 +617,6 @@
       setTimeout(aiMove, 150);
     }
   }
-
   function updateStatus() {
     if (gameOver) return;
     const check = isInCheck(turn);
@@ -662,7 +631,6 @@
     statusEl.textContent = txt;
     statusEl.className = 'status' + (check?' alert':'');
   }
-
   function checkEnd() {
     const moves = getAllLegal(turn);
     if (moves.length === 0) {
@@ -678,11 +646,11 @@
       endOverlay.classList.remove('hidden');
       return;
     }
-    // insufficient material (very basic)
+    // material insuficiente (verificacao basica)
     const pieces = [];
     for (let r=0;r<8;r++) for (let c=0;c<8;c++) if (board[r][c]) pieces.push(board[r][c].type);
     if (pieces.length<=2 || (pieces.length===3 && pieces.some(t=>t==='B'||t==='N'))) {
-      // possible draw, but keep simple - only if no pawns/queens/rooks
+      // possivel empate, considerando a ausencia de peoes, damas e torres
       const hasMajor = pieces.some(t => t==='Q'||t==='R'||t==='P');
       if (!hasMajor) {
         gameOver = true;
@@ -692,11 +660,10 @@
       }
     }
   }
-
-  // ============== AI ==============
+  // ============== INTELIGENCIA ARTIFICIAL ==============
   function evaluate() {
     let score = 0;
-    const pst = { // simple piece-square for pawns/knights
+    const pst = { // tabela simples de posicoes para peoes e cavalos
       P: [0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10, 5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5, 5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
       N: [-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40, -30,0,10,15,15,10,0,-30, -30,5,15,20,20,15,5,-30, -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30, -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50]
     };
@@ -710,20 +677,19 @@
       }
       score += p.color==='w' ? v : -v;
     }
-    // slight mobility
+    // pequeno bonus de mobilidade
     score += (getAllLegal('w').length - getAllLegal('b').length) * 2;
     return score;
   }
-
   function minimax(depth, alpha, beta, maximizing) {
     if (depth === 0) return evaluate();
     const color = maximizing ? 'w' : 'b';
     const moves = getAllLegal(color);
     if (moves.length === 0) {
       if (isInCheck(color)) return maximizing ? -99999 + (4-depth) : 99999 - (4-depth);
-      return 0; // stalemate
+      return 0; // afogamento
     }
-    // simple move ordering: captures first
+    // ordenacao simples: capturas primeiro
     moves.sort((a,b) => {
       const ca = board[a.tr][a.tc] ? 1 : 0;
       const cb = board[b.tr][b.tc] ? 1 : 0;
@@ -734,7 +700,7 @@
       for (const m of moves) {
         const snap = snapshotState();
         doMove(m.fr,m.fc,m.tr,m.tc,m.flags,true);
-        // auto-promote to Q for AI
+        // promove automaticamente para dama na IA
         if (board[m.tr][m.tc] && board[m.tr][m.tc].type==='P' && (m.tr===0||m.tr===7))
           board[m.tr][m.tc].type = 'Q';
         const ev = minimax(depth-1, alpha, beta, false);
@@ -760,28 +726,25 @@
       return minEval;
     }
   }
-
   function aiMove() {
     if (gameOver) return;
     aiThinking = true;
     statusEl.textContent = 'Computador pensando...';
     statusEl.className = 'status';
-    // use setTimeout to allow UI update
+    // usa setTimeout para permitir a atualizacao da interface
     setTimeout(() => {
       const depth = DEPTHS[mode] || 2;
       const maximizing = turn === 'w';
       const moves = getAllLegal(turn);
       if (moves.length === 0) { aiThinking=false; checkEnd(); return; }
-
-      // for easy, sometimes random
+      // no nivel facil, escolhe aleatoriamente algumas vezes
       let best = null;
       let bestScore = maximizing ? -Infinity : Infinity;
-      // shuffle a bit for variety
+      // embaralha um pouco para variar as jogadas
       for (let i=moves.length-1;i>0;i--) {
         const j = Math.floor(Math.random()*(i+1));
         [moves[i],moves[j]] = [moves[j],moves[i]];
       }
-
       for (const m of moves) {
         const snap = snapshotState();
         doMove(m.fr,m.fc,m.tr,m.tc,m.flags,true);
@@ -789,7 +752,7 @@
           board[m.tr][m.tc].type = 'Q';
         let score;
         if (mode==='easy' && Math.random()<0.35) {
-          score = (Math.random()-0.5)*200; // noise
+          score = (Math.random()-0.5)*200; // ruido
         } else {
           score = minimax(depth-1, -Infinity, Infinity, !maximizing);
         }
@@ -811,8 +774,7 @@
       if (!gameOver) updateStatus();
     }, 50);
   }
-
-  // ============== CONTROLS ==============
+  // ============== CONTROLES ==============
   modeBtns.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
       mode = btn.dataset.mode;
@@ -821,13 +783,12 @@
       startGame();
     });
   });
-
   document.getElementById('btnNew').addEventListener('click', startGame);
   document.getElementById('btnUndo').addEventListener('click', () => {
     if (history.length < 2 || aiThinking || gameOver) return;
-    // undo last human + AI or two human moves
-    history.pop(); // current
-    if (mode !== 'pvp') history.pop(); // AI move
+    // desfaz a ultima jogada humana + IA ou duas jogadas humanas
+    history.pop(); // estado atual
+    if (mode !== 'pvp') history.pop(); // jogada da IA
     const prev = history[history.length-1];
     if (prev) {
       restoreState(prev);
@@ -843,13 +804,11 @@
     endOverlay.classList.add('hidden');
     startGame();
   });
-
   function startGame() {
     setupStart();
-    // random who starts with white
+    // define aleatoriamente quem jogara com as brancas
     if (mode === 'pvp') {
-      humanColor = 'w'; // board orientation always white bottom for pvp simplicity, but turn is always w first
-      // actually random first player color doesn't change much; white always starts
+      humanColor = 'w'; // orientacao sempre com brancas embaixo; as brancas comecam
     } else {
       humanColor = Math.random() < 0.5 ? 'w' : 'b';
     }
@@ -864,14 +823,12 @@
       setTimeout(aiMove, 400);
     }
   }
-
-  // initial empty board visual
+  // visual inicial do tabuleiro vazio
   setupStart();
-  // clear pieces for start screen
+  // remove as pecas da tela inicial
   board = createEmpty();
   render();
   statusEl.textContent = 'Escolha um modo para começar';
-
 })();
 </script>
 </body>
