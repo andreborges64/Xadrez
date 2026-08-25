@@ -783,7 +783,13 @@
       startGame();
     });
   });
-  document.getElementById('btnNew').addEventListener('click', startGame);
+  document.getElementById('btnNew').addEventListener('click', () => {
+    if (aiThinking) return;
+    modeBtns.style.display = 'flex';
+    gameBtns.style.display = 'none';
+    statusEl.textContent = 'Escolha um modo para começar';
+    statusEl.className = 'status';
+  });
   document.getElementById('btnUndo').addEventListener('click', () => {
     if (history.length < 2 || aiThinking || gameOver) return;
     // desfaz a ultima jogada humana + IA ou duas jogadas humanas
